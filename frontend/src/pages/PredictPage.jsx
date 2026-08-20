@@ -34,7 +34,7 @@ const INITIAL_FORM_STATE = {
   Newspaper: 'No',
   'Digital Advertisement': 'No',
   'Through Recommendations': 'No',
-  'Lead Quality': 'High in Relevance',
+  'Last Notable Activity': 'Email Opened',
   City: 'Mumbai',
   'A free copy of Mastering The Interview': 'No',
 };
@@ -58,7 +58,7 @@ const HIGH_PRIORITY_SAMPLE = {
   Newspaper: 'No',
   'Digital Advertisement': 'No',
   'Through Recommendations': 'No',
-  'Lead Quality': 'High in Relevance',
+  'Last Notable Activity': 'SMS Sent',
   City: 'Mumbai',
   'A free copy of Mastering The Interview': 'No',
 };
@@ -82,7 +82,7 @@ const LOW_PRIORITY_SAMPLE = {
   Newspaper: 'No',
   'Digital Advertisement': 'No',
   'Through Recommendations': 'No',
-  'Lead Quality': 'Worst',
+  'Last Notable Activity': 'Email Bounced',
   City: 'Mumbai',
   'A free copy of Mastering The Interview': 'No',
 };
@@ -147,7 +147,7 @@ export default function PredictPage() {
         Newspaper: parseCategoricalField(formData.Newspaper),
         'Digital Advertisement': parseCategoricalField(formData['Digital Advertisement']),
         'Through Recommendations': parseCategoricalField(formData['Through Recommendations']),
-        'Lead Quality': parseCategoricalField(formData['Lead Quality']),
+        'Last Notable Activity': parseCategoricalField(formData['Last Notable Activity']),
         City: parseCategoricalField(formData.City),
         'A free copy of Mastering The Interview': parseCategoricalField(formData['A free copy of Mastering The Interview']),
       };
@@ -228,34 +228,79 @@ export default function PredictPage() {
     }
   };
 
-  // Derive factual key drivers from the lead's entered profile
-  const getKeySignals = () => {
+  // Derive beginner-friendly explanation signals from the entered lead profile
+  const getWhyThisScoreSignals = () => {
     const signals = [];
+
+    // Engagement & time spent
     const timeSpent = formData['Total Time Spent on Website'];
     if (timeSpent !== null && timeSpent !== '' && !isNaN(Number(timeSpent))) {
       if (Number(timeSpent) >= 500) {
-        signals.push('Strong website engagement (≥ 500s session)');
+        signals.push('Strong website engagement');
       } else if (Number(timeSpent) < 60) {
-        signals.push('Short session duration (< 60s)');
+        signals.push('Low website engagement');
       }
     }
 
-    if (formData['Lead Quality'] === 'High in Relevance') {
-      signals.push('High lead quality qualification rating');
-    } else if (formData['Lead Quality'] === 'Worst' || formData['Lead Quality'] === 'Low in Relevance') {
-      signals.push('Low relevance rating');
+    // Number of visits
+    const visits = formData.TotalVisits;
+    if (visits !== null && visits !== '' && !isNaN(Number(visits))) {
+      if (Number(visits) >= 6) {
+        signals.push('High number of visits');
+      }
     }
 
-    if (formData['Lead Origin'] === 'Lead Add Form' || formData['Lead Source'] === 'Reference') {
-      signals.push('High-intent referral channel');
+    // Relevant lead source / origin
+    if (
+      formData['Lead Origin'] === 'Lead Add Form' ||
+      formData['Lead Source'] === 'Reference' ||
+      formData['Lead Source'] === 'Welingak Website'
+    ) {
+      signals.push('Relevant lead source');
     }
 
+    // Occupation profile
     if (formData['What is your current occupation'] === 'Working Professional') {
       signals.push('Working professional background');
     }
 
+    // Communication preferences / restrictions
     if (formData['Do Not Email'] === 'Yes') {
-      signals.push('Email opt-out restriction');
+      signals.push('Email communication restricted');
+    }
+    if (formData['Do Not Call'] === 'Yes') {
+      signals.push('Phone calls restricted');
+    }
+
+    // Last Notable Activity signal
+    if (
+      formData['Last Notable Activity'] === 'SMS Sent' ||
+      formData['Last Notable Activity'] === 'Had a Phone Conversation' ||
+      formData['Last Notable Activity'] === 'Approached upfront'
+    ) {
+      signals.push('Recent direct outreach engagement');
+    } else if (
+      formData['Last Notable Activity'] === 'Email Bounced' ||
+      formData['Last Notable Activity'] === 'Unsubscribed' ||
+      formData['Last Notable Activity'] === 'Unreachable'
+    ) {
+      signals.push('Inactive outreach status');
+    }
+
+    // Missing key information
+    const isMissingKeyData =
+      formData.TotalVisits === '' ||
+      formData.TotalVisits === null ||
+      formData['Total Time Spent on Website'] === '' ||
+      formData['Total Time Spent on Website'] === null;
+
+    if (isMissingKeyData && signals.length < 2) {
+      signals.push('Missing information');
+    }
+
+    // Safe fallback if no specific signals matched
+    if (signals.length === 0) {
+      signals.push('The score is based on the lead information provided and the patterns learned by the ML model.');
     }
 
     return signals.slice(0, 3);
@@ -311,7 +356,7 @@ export default function PredictPage() {
             <form onSubmit={handleScoreLead} className="form-card">
               <div className="form-card-header">
                 <h2 className="card-heading">Lead Attributes</h2>
-                <span className="card-subheading">All 22 features expected by the calibrated pipeline</span>
+                <span className="card-subheading">Lead profile attributes and engagement metrics</span>
               </div>
 
               {/* Section 1: Engagement */}
@@ -510,18 +555,26 @@ export default function PredictPage() {
                 </div>
                 <div className="fields-grid grid-cols-2">
                   <div className="field-group">
-                    <label htmlFor="LeadQuality">Lead Quality</label>
+                    <label htmlFor="LastNotableActivity">Last Notable Activity</label>
                     <select
-                      id="LeadQuality"
-                      name="Lead Quality"
-                      value={formData['Lead Quality'] ?? ''}
+                      id="LastNotableActivity"
+                      name="Last Notable Activity"
+                      value={formData['Last Notable Activity'] ?? ''}
                       onChange={handleChange}
                     >
-                      <option value="High in Relevance">High in Relevance</option>
-                      <option value="Might be">Might be</option>
-                      <option value="Not Sure">Not Sure</option>
-                      <option value="Low in Relevance">Low in Relevance</option>
-                      <option value="Worst">Worst</option>
+                      <option value="SMS Sent">SMS Sent</option>
+                      <option value="Email Opened">Email Opened</option>
+                      <option value="Page Visited on Website">Page Visited on Website</option>
+                      <option value="Olark Chat Conversation">Olark Chat Conversation</option>
+                      <option value="Modified">Modified</option>
+                      <option value="Email Link Clicked">Email Link Clicked</option>
+                      <option value="Had a Phone Conversation">Had a Phone Conversation</option>
+                      <option value="Email Bounced">Email Bounced</option>
+                      <option value="Unsubscribed">Unsubscribed</option>
+                      <option value="Unreachable">Unreachable</option>
+                      <option value="Approached upfront">Approached upfront</option>
+                      <option value="Email Received">Email Received</option>
+                      <option value="Resubscribed to emails">Resubscribed to emails</option>
                       <option value="">Not provided</option>
                     </select>
                   </div>
@@ -763,12 +816,12 @@ export default function PredictPage() {
                   </div>
                 </div>
 
-                {/* Profile Key Signals */}
-                {getKeySignals().length > 0 && (
+                {/* Why this score? Signals */}
+                {getWhyThisScoreSignals().length > 0 && (
                   <div className="signals-box">
-                    <span className="signals-title">Profile Highlights</span>
+                    <span className="signals-title">Why this score?</span>
                     <ul className="signals-list">
-                      {getKeySignals().map((sig, idx) => (
+                      {getWhyThisScoreSignals().map((sig, idx) => (
                         <li key={idx}>
                           <CheckCircle2 size={13} className="signal-icon" />
                           <span>{sig}</span>

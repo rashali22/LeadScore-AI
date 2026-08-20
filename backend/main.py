@@ -10,20 +10,40 @@ model = None
 
 
 def load_model():
-    """Load the lead conversion model once at application startup."""
+    """Load the lead conversion model from the project root (.pkl file)."""
     global model
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, "models", "lead_conversion_model.pkl")
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(backend_dir)
 
-    if not os.path.exists(model_path):
-        model_path = os.path.join(base_dir, "lead_conversion_model.pkl")
+    # Prioritize loading the .pkl model located at the project root
+    candidate_paths = [
+        os.path.join(project_root, "lead_conversion_model (1).pkl"),
+        os.path.join(project_root, "lead_conversion_model.pkl"),
+        os.path.join(backend_dir, "..", "lead_conversion_model (1).pkl"),
+        os.path.join(backend_dir, "..", "lead_conversion_model.pkl"),
+        os.path.join(os.getcwd(), "lead_conversion_model (1).pkl"),
+        os.path.join(os.getcwd(), "lead_conversion_model.pkl"),
+        # Fallback to backend/models directory
+        os.path.join(backend_dir, "models", "lead_conversion_model (1).pkl"),
+        os.path.join(backend_dir, "models", "lead_conversion_model.pkl"),
+        os.path.join(backend_dir, "lead_conversion_model (1).pkl"),
+        os.path.join(backend_dir, "lead_conversion_model.pkl"),
+    ]
+
+    model_path = None
+    for path in candidate_paths:
+        norm_path = os.path.normpath(path)
+        if os.path.exists(norm_path):
+            model_path = norm_path
+            break
+
+    if not model_path:
+        raise FileNotFoundError("Lead conversion model file (.pkl) not found in project root or backend/models.")
 
     print(f"Loading lead conversion model from: {model_path}")
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at: {model_path}")
-
     model = joblib.load(model_path)
-    print("Lead conversion model loaded successfully.")
+    feature_count = len(model.feature_names_in_) if hasattr(model, "feature_names_in_") else "unknown"
+    print(f"Lead conversion model loaded successfully with {feature_count} features.")
     return model
 
 
@@ -80,7 +100,7 @@ def predict_lead():
         if not isinstance(data, dict):
             data = {}
 
-        # Map and sanitize input features
+        # Map and sanitize input features matching the exact 21 features of the new pipeline
         features_dict = {
             "TotalVisits": parse_numeric(data.get("TotalVisits")),
             "Total Time Spent on Website": parse_numeric(data.get("Total Time Spent on Website")),
@@ -100,9 +120,9 @@ def predict_lead():
             "Newspaper": parse_categorical(data.get("Newspaper")),
             "Digital Advertisement": parse_categorical(data.get("Digital Advertisement")),
             "Through Recommendations": parse_categorical(data.get("Through Recommendations")),
-            "Lead Quality": parse_categorical(data.get("Lead Quality")),
             "City": parse_categorical(data.get("City")),
             "A free copy of Mastering The Interview": parse_categorical(data.get("A free copy of Mastering The Interview")),
+            "Last Notable Activity": parse_categorical(data.get("Last Notable Activity")),
         }
 
         # Convert input into a single-row DataFrame matching the exact pipeline feature schema
@@ -111,7 +131,8 @@ def predict_lead():
         # Numerical features: convert null/empty values to np.nan and enforce float dtype
         num_cols = ["TotalVisits", "Total Time Spent on Website", "Page Views Per Visit"]
         for col in num_cols:
-            input_df[col] = pd.to_numeric(input_df[col], errors="coerce").astype(float)
+            if col in input_df.columns:
+                input_df[col] = pd.to_numeric(input_df[col], errors="coerce").astype(float)
 
         # Categorical features: convert null/None values to np.nan for SimpleImputer
         cat_cols = [
@@ -130,12 +151,13 @@ def predict_lead():
             "Newspaper",
             "Digital Advertisement",
             "Through Recommendations",
-            "Lead Quality",
             "City",
             "A free copy of Mastering The Interview",
+            "Last Notable Activity",
         ]
         for col in cat_cols:
-            input_df[col] = input_df[col].replace({None: np.nan})
+            if col in input_df.columns:
+                input_df[col] = input_df[col].replace({None: np.nan})
 
         # Ensure the DataFrame contains only the exact feature schema expected by the saved pipeline
         if hasattr(model, "feature_names_in_"):
