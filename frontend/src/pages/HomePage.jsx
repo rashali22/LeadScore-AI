@@ -128,15 +128,11 @@ export default function HomePage() {
                       <span className="order-label-green">High Potential</span>
                     </div>
                     <div className="order-row">
-                      <span className="order-badge badge-rank-green">2</span>
-                      <span className="order-label-green">High Potential</span>
-                    </div>
-                    <div className="order-row">
-                      <span className="order-badge badge-rank-amber">3</span>
+                      <span className="order-badge badge-rank-amber">2</span>
                       <span className="order-label-amber">Medium Potential</span>
                     </div>
                     <div className="order-row">
-                      <span className="order-badge badge-rank-red">4</span>
+                      <span className="order-badge badge-rank-red">3</span>
                       <span className="order-label-red">Low Potential</span>
                     </div>
                   </div>
