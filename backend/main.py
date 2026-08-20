@@ -80,7 +80,7 @@ def predict_lead():
         if not isinstance(data, dict):
             data = {}
 
-        # Map and sanitize input features back to the exact 22 column names expected by the pipeline
+        # Map and sanitize input features
         features_dict = {
             "TotalVisits": parse_numeric(data.get("TotalVisits")),
             "Total Time Spent on Website": parse_numeric(data.get("Total Time Spent on Website")),
@@ -103,7 +103,6 @@ def predict_lead():
             "Lead Quality": parse_categorical(data.get("Lead Quality")),
             "City": parse_categorical(data.get("City")),
             "A free copy of Mastering The Interview": parse_categorical(data.get("A free copy of Mastering The Interview")),
-            "Last Notable Activity": parse_categorical(data.get("Last Notable Activity")),
         }
 
         # Convert input into a single-row DataFrame matching the exact pipeline feature schema
@@ -134,10 +133,13 @@ def predict_lead():
             "Lead Quality",
             "City",
             "A free copy of Mastering The Interview",
-            "Last Notable Activity",
         ]
         for col in cat_cols:
             input_df[col] = input_df[col].replace({None: np.nan})
+
+        # Ensure the DataFrame contains only the exact feature schema expected by the saved pipeline
+        if hasattr(model, "feature_names_in_"):
+            input_df = input_df.reindex(columns=model.feature_names_in_)
 
         # Directly invoke the pipeline's predict_proba (preprocessing & imputation handled internally by pipeline)
         probabilities = model.predict_proba(input_df)
