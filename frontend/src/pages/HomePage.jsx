@@ -429,7 +429,7 @@ export default function HomePage() {
           </h2>
 
           <p className="callout-subtext">
-            Start prioritizing your leads with the power of AI.
+            Discover which leads are most likely to convert.
           </p>
 
           <div className="callout-buttons-group">
